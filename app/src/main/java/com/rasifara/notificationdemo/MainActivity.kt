@@ -11,18 +11,17 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import com.rasifara.notificationdemo.notification.BigPictureStyleMockData
 import com.rasifara.notificationdemo.notification.InboxStyleMockData
 import com.rasifara.notificationdemo.notification.NotificationUtil
 
+@Suppress("DEPRECATION")
 class MainActivity : AppCompatActivity(), View.OnClickListener {
 
     private val NOTIFICATION_ID = 888
@@ -40,18 +39,30 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    private fun checkSelfPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // TODO Step 9: Initialize the notification Manager.
-        // START
         mNotificationManagerCompat = NotificationManagerCompat.from(this@MainActivity)
-        // END
 
         val btnInboxStyleNotification = findViewById<Button>(R.id.btn_inbox_style)
         btnInboxStyleNotification.setOnClickListener(this@MainActivity)
+
+        val btnBigImageStyleNotification = findViewById<Button>(R.id.btn_big_image_style)
+        btnBigImageStyleNotification.setOnClickListener(this@MainActivity)
     }
 
     override fun onClick(v: View?) {
@@ -59,6 +70,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
             R.id.btn_inbox_style -> {
                 generateInboxStyleNotification()
+                return
+            }
+
+            R.id.btn_big_image_style -> {
+                generateBigImageStyleNotification()
                 return
             }
         }
@@ -160,16 +176,103 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         val notification = notificationCompatBuilder.build()
         // END
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
+        checkSelfPermission()
+
         mNotificationManagerCompat.notify(NOTIFICATION_ID, notification)
         // END
     }
+
+
+    // TODO Step 5: Create a function to generate and launch the BigPictureStyle notification.
+    // START
+    /*
+     * Generates a BIG_PICTURE_STYLE Notification that supports both phone/tablet and wear. For
+     * devices on API level 16 (4.1.x - Jelly Bean) and after, displays BIG_PICTURE_STYLE.
+     * Otherwise, displays a basic notification.
+     *
+     * This example Notification is a social post.
+     */
+    private fun generateBigImageStyleNotification() {
+        // Main steps for building a BIG_PICTURE_STYLE notification:
+        //      0. Get your data
+        //      1. Create/Retrieve Notification Channel for O and beyond devices (26+)
+        //      2. Build the BIG_PICTURE_STYLE
+        //      3. Set up main Intent for notification
+        //      4. Set up RemoteInput, so users can input (keyboard and voice) from notification
+        //      5. Build and issue the notification
+
+        // 0. Get your data (everything unique per Notification).
+
+        // 1. Create/Retrieve Notification Channel for O and beyond devices (26+).
+        val notificationChannelId: String =
+            NotificationUtil().createBigPictureStyleNotificationChannel(this@MainActivity)
+
+        val imageResource = BigPictureStyleMockData.mBigImage
+
+        // 2. Build the BIG_PICTURE_STYLE.
+        val bigPictureStyle =
+            NotificationCompat.BigPictureStyle() // Provides the bitmap for the BigPicture notification.
+                .bigPicture(
+                    BitmapFactory.decodeResource(
+                        resources,
+                        imageResource
+                    )
+                ) // Overrides ContentTitle in the big form of the template.
+                .setBigContentTitle(BigPictureStyleMockData.mBigContentTitle) // Summary line after the detail section in the big form of the template.
+                .setSummaryText(BigPictureStyleMockData.mSummaryText)
+
+        // 3. Set up main Intent for notification.
+        val mainIntent = Intent(this, MainActivity::class.java)
+        // Gets a PendingIntent containing the mainIntent.
+        val mainPendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                mainIntent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+
+        // 5. Build and issue the notification.
+        val notificationCompatBuilder = NotificationCompat.Builder(
+            applicationContext,
+            notificationChannelId
+        )
+
+        notificationCompatBuilder
+            .setStyle(bigPictureStyle)
+            .setContentTitle(BigPictureStyleMockData.mContentTitle)
+            .setContentText(BigPictureStyleMockData.mContentText)
+            .setSmallIcon(R.drawable.ic_active_notification)
+            .setLargeIcon(
+                BitmapFactory.decodeResource(
+                    resources,
+                    R.drawable.ic_person
+                )
+            )
+            .setContentIntent(mainPendingIntent)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setColor(
+                ContextCompat.getColor(
+                    applicationContext,
+                    R.color.purple_500
+                )
+            )
+            .setSubText(1.toString())
+            .setCategory(Notification.CATEGORY_SOCIAL)
+            .setPriority(BigPictureStyleMockData.mPriority)
+            .setVisibility(BigPictureStyleMockData.mChannelLockscreenVisibility)
+
+        for (name in BigPictureStyleMockData.mParticipants()) {
+            notificationCompatBuilder.addPerson(name)
+        }
+
+        val notification = notificationCompatBuilder.build()
+
+        checkSelfPermission()
+
+        mNotificationManagerCompat.notify(NOTIFICATION_ID, notification)
+
+    }
+
+
 }
